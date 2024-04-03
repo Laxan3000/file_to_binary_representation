@@ -4,23 +4,28 @@ from math import ceil
 from pathlib import Path
 import numpy as np
 
-# Grayscale
-IMAGE_MODE: str = "L"
+IMAGE_MODE: str = "L" # Grayscale
 IMAGE_FORMAT: str = "png"
-METADATA_NAME: str = "og_file_size"
+METADATA_NAME: str = "OGFileSize"
 
 
 def get_file(force_format: bool = False) -> Path:
     while True:
-        file_path: Path = Path(
-            input("Please drag and drop the file to convert here!: ")
-        )
+        path: str = input("Please drag and drop the file to convert here!: ")
 
-        if file_path and file_path.exists():
+        if not path:
+            print('Path is empty!', end= ' ')
+            continue
+        
+        file_path: Path = Path(path)
+
+        if file_path.exists():
             if force_format and file_path.suffix.casefold() != f".{IMAGE_FORMAT}":
                 continue
 
             return file_path
+           
+        print("Path is not valid!", end= ' ')
 
 
 def get_compression() -> int:
@@ -100,29 +105,38 @@ def from_image() -> None:
         break
 
 
-def main() -> None:
+# Returns True if the program has to be executed again
+# Otherwise it returns False
+def main() -> bool:
+    global running
+    
     print(
-        "Welcome to this amazing program!",
         "What would you like to do?:",
         "a - Generate image from file",
         "b - Generate file from image",
+        "c - Close the program",
         sep="\n",
     )
 
-    match input("Select your answer: ")[0]:
-        case "a":
+    match (input("Select your answer: ") or ' ')[0]:
+        case 'a':
             to_image()
 
-        case "b":
+        case 'b':
             from_image()
+            
+        case 'c':
+            return False
 
         case _:
-            return
+            return True
 
     print("Conversion done! Bye :)")
     input("-- Press any key to re-run the program --")
 
+    return True
+
 
 if __name__ == "__main__":
-    while True:
-        main()
+    print("Welcome to this amazing program!")
+    while main(): print()
