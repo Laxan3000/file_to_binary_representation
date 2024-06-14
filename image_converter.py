@@ -1,31 +1,23 @@
+from tkinter.filedialog import askopenfilename, asksaveasfilename
+from functools import partial
 from PIL import Image
 from PIL.PngImagePlugin import PngInfo
 from math import ceil
-from pathlib import Path
 import numpy as np
 
 IMAGE_MODE: str = "L" # Grayscale
 IMAGE_FORMAT: str = "png"
 METADATA_NAME: str = "OGFileSize"
+FILE_TYPE: list[tuple[str, str]] = [("Binary Rapresentation", f"*.{IMAGE_FORMAT}")]
 
 
-def get_file(force_format: bool = False) -> Path:
-    while True:
-        path: str = input("Please drag and drop the file to convert here!: ")
-
-        if not path:
-            print('Path is empty!', end= ' ')
-            continue
-        
-        file_path: Path = Path(path)
-
-        if file_path.exists():
-            if force_format and file_path.suffix.casefold() != f".{IMAGE_FORMAT}":
-                continue
-
-            return file_path
-           
-        print("Path is not valid!", end= ' ')
+def get_file(force_format: bool = False) -> str:
+    function = partial(askopenfilename, title= "Please select the file to convert")
+    
+    if force_format:
+        function.keywords["filetypes"] = FILE_TYPE
+    
+    return function()
 
 
 def get_compression() -> int:
@@ -38,13 +30,16 @@ def get_compression() -> int:
             return int(compression)
 
 
-def to_image() -> None:
+def to_image() -> bool:
+    if not (file_name := get_file()):
+        return False
+    
     # Read the image from a numpy array
     with Image.fromarray(
         # Pad a coming array at its tail, adding 0 for each missed pixel
         np.pad(
             # Generate the array from the file
-            a := np.frombuffer(open(get_file(), "rb").read(), np.uint8),
+            a := np.frombuffer(open(file_name, "rb").read(), np.uint8),
             
             # Explanation:
             # - (0, ...): 
@@ -66,28 +61,38 @@ def to_image() -> None:
         metadata: PngInfo = PngInfo()
         metadata.add_text(METADATA_NAME, str(size))
         
+        save_name: str = asksaveasfilename(
+            filetypes= FILE_TYPE,
+            title= "What name do you want to give to your rapresentation?"
+        )
+        
+        if not save_name.endswith(f".{IMAGE_FORMAT}"):
+            save_name += f".{IMAGE_FORMAT}"
+        
         # Save the image as png
         image.save(
-            f"a.{IMAGE_FORMAT}",
+            save_name,
             IMAGE_FORMAT,
             compress_level= get_compression(),
             pnginfo= metadata
         )
         
+        return True
+        
 
-def from_image() -> None:
-    # Asks the user if he remembers the file extension
-    # This is pointless since it could be changed manually by the user
-    format: str = (
-        input(
-            "What's the file extension? [txt]: "
-        )
-        or "txt"
+def from_image() -> bool:
+    if not (file_name := get_file(True)):
+        return False
+    
+    # Asks the user the name to save the new file
+    save_name: str = asksaveasfilename(
+        filetypes= [("Text Files", "*.txt"), ("All Files", "*.*")],
+        title= "How do you want to save the file as?"
     )
 
     while True:
         # Open the image, then the hard part with numpy comes..
-        with Image.open(get_file(True)) as image:
+        with Image.open(file_name) as image:
             # Check if the image inserted by the user was made by this program
             if not hasattr(image, "text") \
             or not (size := image.text.get(METADATA_NAME)): # type: ignore
@@ -100,16 +105,16 @@ def from_image() -> None:
             # 4 - and finally save it to a file
             np.asarray(image, np.uint8) \
             .flatten()[:int(size)] \
-            .tofile(f"a.{format}", "", format)
+            .tofile(save_name)
             
         break
+    
+    return True
 
 
 # Returns True if the program has to be executed again
 # Otherwise it returns False
 def main() -> bool:
-    global running
-    
     print(
         "What would you like to do?:",
         "a - Generate image from file",
@@ -118,12 +123,13 @@ def main() -> bool:
         sep="\n",
     )
 
+    success: bool = bool()
     match (input("Select your answer: ") or ' ')[0]:
         case 'a':
-            to_image()
+            success = to_image()
 
         case 'b':
-            from_image()
+            success = from_image()
             
         case 'c':
             return False
@@ -131,7 +137,12 @@ def main() -> bool:
         case _:
             return True
 
-    print("Conversion done! Bye :)")
+    print(
+        "Conversion done! Bye :)"
+        if success else
+        "Operation canceled"
+    )
+        
     input("-- Press any key to re-run the program --")
 
     return True
