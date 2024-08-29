@@ -18,10 +18,10 @@ COMPATIBLE_MODES: tuple[tuple[str, str]] = (
 
 def get_file(force_format: bool = False) -> str:
     function = partial(askopenfilename, title= "Please select the file to convert")
-    
+
     if force_format:
         function.keywords["filetypes"] = FILE_TYPE
-    
+
     return function()
 
 
@@ -35,7 +35,7 @@ def get_mode() -> str:
             ) +
             "\nSelect your answer [2]: ",
         ) or '2'
-        
+
         if '0' <= mode <= f'{len(COMPATIBLE_MODES) - 1}':
             return COMPATIBLE_MODES[int(mode)][0]
 
@@ -45,7 +45,7 @@ def get_compression() -> int:
         compression: str = input(
             "Please select a compression level (0-9) [6]: "
         ) or '6'
-        
+
         if '0' <= compression[0] <= '9':
             return int(compression)
 
@@ -53,37 +53,37 @@ def get_compression() -> int:
 def to_image() -> bool:
     if not (file_name := get_file()):
         return False
-    
+
     mode: str = get_mode()
     bytesnum: int = sum(1 for c in mode if c.isupper())
-    
+
     # Read the image from a numpy array
     with Image.fromarray(
         # Pad a coming array at its tail, adding 0 for each missed pixel
         np.pad(
             # Generate the array from the file
             a := np.frombuffer(open(file_name, "rb").read(), np.uint8),
-            
+
             # Explanation:
-            # - (0, ...): 
+            # - (0, ...):
             #   0 is how much padding has to be added at the head of the array
             #   ... is how much padding has to be added at the tail of the array
             (0, (side := ceil(ceil((size := len(a)) / bytesnum) ** 0.5)) ** 2 * bytesnum - size),
-        
+
             # "Constant" means it's keeping the upcoming value the same
             'constant',
-            
+
             # The value to pad the array with
             constant_values= 0
-            
+
         # Reshape the array so to make a square
-        ).reshape(side, side, bytesnum),
+        ).reshape(*((side, side, bytesnum) if bytesnum > 1 else (side, side))),
         mode
     ) as image:
         # Prepare metadata to add to the image
         metadata: PngInfo = PngInfo()
         metadata.add_text(METADATA_NAME, str(size))
-        
+
         if not (
             save_name := asksaveasfilename(
                 defaultextension= IMAGE_FORMAT,
@@ -92,7 +92,7 @@ def to_image() -> bool:
             )
         ):
             return False
-        
+
         # Save the image as png
         image.save(
             save_name,
@@ -100,9 +100,9 @@ def to_image() -> bool:
             compress_level= get_compression(),
             pnginfo= metadata
         )
-        
+
         return True
-        
+
 
 def from_image() -> bool:
     if not (file_name := get_file(True)) \
@@ -123,7 +123,7 @@ def from_image() -> bool:
             or not (size := image.text.get(METADATA_NAME)): # type: ignore
                 print("That is not a valid image file!")
                 continue
-            
+
             # 1 - Convert the image to a numpy array
             # 2 - then flatten the array
             # 3 - then read only the valid bytes from the array
@@ -131,9 +131,9 @@ def from_image() -> bool:
             np.asarray(image, np.uint8) \
             .flatten()[:int(size)] \
             .tofile(save_name)
-            
+
         break
-    
+
     return True
 
 
@@ -155,7 +155,7 @@ def main() -> bool:
 
         case 'b':
             success = from_image()
-            
+
         case 'c':
             return False
 
@@ -167,7 +167,7 @@ def main() -> bool:
         if success else
         "Operation canceled"
     )
-        
+
     input("-- Press any key to re-run the program --")
 
     return True
