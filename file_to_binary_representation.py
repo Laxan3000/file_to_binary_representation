@@ -6,9 +6,9 @@ from math import ceil
 import numpy as np
 
 IMAGE_FORMAT: str = "png"
-METADATA_NAME: str = "OGFileSize"
+METADATA_NAME: str = "SPPadding"
 FILE_TYPE: list[tuple[str, str]] = [("Binary Rapresentation", f"*.{IMAGE_FORMAT}")]
-COMPATIBLE_MODES: tuple[tuple[str, str]] = (
+COMPATIBLE_MODES: tuple[tuple[str, str], ...] = (
     ("L", "grayscale"),
     ("LA", "+ transparency"),
     ("RGB", "true color"),
@@ -68,7 +68,7 @@ def to_image() -> bool:
             # - (0, ...):
             #   0 is how much padding has to be added at the head of the array
             #   ... is how much padding has to be added at the tail of the array
-            (0, (side := ceil(ceil((size := len(a)) / bytesnum) ** 0.5)) ** 2 * bytesnum - size),
+            (0, padding := (side := ceil(ceil((size := len(a)) / bytesnum) ** 0.5)) ** 2 * bytesnum - size),
 
             # "Constant" means it's keeping the upcoming value the same
             'constant',
@@ -82,7 +82,7 @@ def to_image() -> bool:
     ) as image:
         # Prepare metadata to add to the image
         metadata: PngInfo = PngInfo()
-        metadata.add_text(METADATA_NAME, str(size))
+        metadata.add_text(METADATA_NAME, str(padding))
 
         if not (
             save_name := asksaveasfilename(
@@ -129,7 +129,7 @@ def from_image() -> bool:
             # 3 - then read only the valid bytes from the array
             # 4 - and finally save it to a file
             np.asarray(image, np.uint8) \
-            .flatten()[:int(size)] \
+            .flatten()[:-int(size)] \
             .tofile(save_name)
 
         break
